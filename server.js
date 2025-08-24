@@ -178,7 +178,8 @@ class AltoBot {
 */owner* - Kontak owner
 */game* - Main game tebak angka
 */clear* - Hapus riwayat obrolan
---------------------------------`;
+--------------------------------
+*ketik dengan tanda / `;
 
         if (user.isAdmin) {
             menu += `\n--- 👑 MENU ADMIN ---
