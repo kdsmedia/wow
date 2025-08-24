@@ -1,5 +1,5 @@
 {
-  "name": "alto-whatsapp-bot",
+  "name": "altobot",
   "version": "1.0.0",
   "description": "A real WhatsApp bot with features like daily claims, tasks, games, and AI chat powered by Gemini.",
   "main": "server.js",
