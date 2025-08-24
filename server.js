@@ -167,7 +167,7 @@ class AltoBot {
 
     showMenu(message, user) {
         let menu = `*MENU ALTO*
---------------------------------
+---------------------------------------
 */menu* - Menampilkan menu ini
 */saldo* - Cek saldo Anda
 */klaim* - Klaim bonus harian Anda
@@ -178,7 +178,7 @@ class AltoBot {
 */owner* - Kontak owner
 */game* - Main game tebak angka
 */clear* - Hapus riwayat obrolan
---------------------------------
+---------------------------------------
 *ketik dengan tanda / `;
 
         if (user.isAdmin) {
