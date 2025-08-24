@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <title>Aplikasi Bot CLI</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 2em; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { color: #00a884; }
+        code { background: #e9edef; padding: 0.2em 0.5em; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+        ol { padding-left: 20px; }
+        li { margin-bottom: 0.5rem; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.15.0",
+    "dotenv/": "https://esm.sh/dotenv@^17.2.1/",
+    "qrcode-terminal": "https://esm.sh/qrcode-terminal@^0.12.0",
+    "whatsapp-web.js": "https://esm.sh/whatsapp-web.js@^1.32.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Aplikasi Telah Diubah Menjadi Bot Command-Line (CLI)</h1>
+        <p>
+            Aplikasi ini sekarang berjalan di terminal (command line), bukan di browser web. Antarmuka web telah dinonaktifkan.
+        </p>
+        <p>
+            File utama yang baru adalah <code>server.js</code>.
+        </p>
+        <h2>Cara Menjalankan Bot:</h2>
+        <ol>
+            <li>Buat file bernama <code>.env</code> di direktori proyek.</li>
+            <li>Di dalam file <code>.env</code>, tambahkan baris berikut: <code>API_KEY=KUNCI_API_GEMINI_ANDA</code> (ganti dengan kunci API Anda yang sebenarnya).</li>
+            <li>Buka terminal atau command prompt di direktori proyek Anda.</li>
+            <li>Jalankan perintah <code>npm install</code> untuk menginstal semua dependensi yang diperlukan.</li>
+            <li>Setelah instalasi selesai, jalankan <code>npm start</code> untuk memulai bot.</li>
+            <li>Ikuti petunjuk di terminal untuk berinteraksi dengan bot.</li>
+        </ol>
+    </div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

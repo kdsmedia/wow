@@ -1,0 +1,5 @@
+{
+  "name": "ALTO WhatsApp Bot",
+  "description": "A real WhatsApp bot with features like daily claims, tasks, games, admin panel, and AI chat powered by Gemini. Requires QR code scan to connect.",
+  "requestFramePermissions": []
+}
