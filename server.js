@@ -1,13 +1,7 @@
-// =================================================================
-// server.js [SUDAH DIPERBAIKI]
-// =================================================================
-
-import { GoogleGenerativeAI } from "@google/generative-ai"; // Nama import yang benar
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as fs from 'node:fs/promises';
 import 'dotenv/config';
 import qrcode from 'qrcode-terminal';
-
-// [PERBAIKAN 1]: Cara import whatsapp-web.js
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
 
@@ -16,9 +10,6 @@ const USERS_DB_PATH = './users.json';
 const TASKS_DB_PATH = './tasks.json';
 const CONFIG_PATH = './config.json';
 
-/**
- * Kelas helper untuk mengelola penyimpanan berbasis file.
- */
 class Storage {
     static async read(filePath) {
         try {
@@ -29,35 +20,32 @@ class Storage {
             return null;
         }
     }
-
     static async write(filePath, data) {
         await fs.writeFile(filePath, JSON.stringify(data, null, 2));
     }
 }
 
-/**
- * Kelas aplikasi utama untuk ALTO Bot WhatsApp.
- */
 class AltoBot {
     constructor() {
         this.client = new Client({
             authStrategy: new LocalAuth(),
+            puppeteer: {
+                headless: true,
+                args: ['--no-sandbox'] // <-- PERBAIKAN UNTUK SERVER UBUNTU
+            },
             webVersionCache: {
                 type: 'remote',
                 remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
             }
         });
-        this.genAI = null; // Ganti nama variabel AI
-        this.userChats = new Map(); // Menyimpan sesi obrolan per pengguna
+        this.genAI = null;
+        this.userChats = new Map();
         this.users = {};
         this.tasks = [];
         this.config = {};
-        this.ownerNumber = "6285813899649"; // Nomor owner/admin
+        this.ownerNumber = "6285813899649";
     }
 
-    /**
-     * Menginisialisasi bot dengan memuat data, mengonfigurasi AI, dan menyiapkan klien WhatsApp.
-     */
     async initialize() {
         console.log("🚀 Memulai inisialisasi ALTO Bot...");
         await this.loadData();
@@ -66,9 +54,6 @@ class AltoBot {
         this.client.initialize();
     }
 
-    /**
-     * Memuat semua data yang diperlukan dari file JSON.
-     */
     async loadData() {
         this.config = await Storage.read(CONFIG_PATH) || { adminPassword: 'admin123', dailyBonus: { min: 100, max: 500 } };
         this.users = await Storage.read(USERS_DB_PATH) || {};
@@ -76,16 +61,12 @@ class AltoBot {
         console.log("✅ Data berhasil dimuat.");
     }
 
-    /**
-     * Menginisialisasi model AI Gemini.
-     */
     initializeAI() {
         if (!process.env.API_KEY) {
             console.error("\n❌ ERROR: Environment variable API_KEY tidak diatur.");
             process.exit(1);
         }
         try {
-            // [PERBAIKAN 2]: Cara inisialisasi AI yang benar
             this.genAI = new GoogleGenerativeAI(process.env.API_KEY);
             console.log("✅ AI Berhasil Diinisialisasi.");
         } catch (error) {
@@ -94,32 +75,21 @@ class AltoBot {
         }
     }
     
-    /**
-     * Mengatur event handler untuk klien WhatsApp.
-     */
     setupWhatsAppEvents() {
         this.client.on('qr', qr => {
             console.log("📲 Pindai Kode QR ini dengan WhatsApp Anda untuk menautkan perangkat:");
             qrcode.generate(qr, { small: true });
         });
-
         this.client.on('ready', () => {
             console.log('✅ ALTO Bot terhubung dan siap menerima pesan!');
         });
-        
         this.client.on('message', this.handleMessage.bind(this));
     }
 
-    // [PERBAIKAN 3]: getChatSession sudah tidak diperlukan, logika digabung di getAiResponse
-
-    /**
-     * Menangani pesan masuk dari WhatsApp.
-     */
     async handleMessage(message) {
         const userId = message.from;
         let user = this.users[userId];
 
-        // Buat user baru jika belum ada
         if (!user) {
             user = {
                 balance: 0, isBlocked: false,
@@ -135,7 +105,6 @@ class AltoBot {
 
         if (user.isBlocked) return;
 
-        // Reset data harian
         const today = new Date().toDateString();
         if (user.lastLogin !== today) {
             user.lastLogin = today;
@@ -143,7 +112,6 @@ class AltoBot {
             user.completedTasksToday = [];
         }
 
-        // --- Logika State (Captcha & Game) ---
         if (user.captchaState.isWaiting) {
             await this.verifyCaptcha(message, user, message.body);
             return;
@@ -158,7 +126,7 @@ class AltoBot {
         const commandName = command.split(' ')[0];
         
         if (!command.startsWith('/')) {
-            await this.getAiResponse(message); // User tidak lagi diperlukan di sini
+            await this.getAiResponse(message);
             return;
         }
 
@@ -173,18 +141,8 @@ class AltoBot {
             case '/game': await this.startGame(message, user); break;
             case '/loginadmin': this.handleLoginAdmin(message, user, args[0]); break;
             case '/clear': this.userChats.delete(userId); message.reply('🤖 Riwayat obrolan Anda telah dihapus.'); break;
-            
-            // Perintah Gambar & Video dinonaktifkan sementara
-            case '/gambar':
-                message.reply("Fitur gambar sedang dalam perbaikan. Coba lagi nanti.");
-                // await this.handleImageGeneration(message, args.join(' ')); 
-                break;
-            case '/video':
-                message.reply("Fitur video sedang dalam perbaikan. Coba lagi nanti.");
-                // await this.handleVideoGeneration(message, args.join(' ')); 
-                break;
-
-            // --- Perintah Admin ---
+            case '/gambar': message.reply("Fitur gambar sedang dalam perbaikan. Coba lagi nanti."); break;
+            case '/video': message.reply("Fitur video sedang dalam perbaikan. Coba lagi nanti."); break;
             case '/listusers': this.handleListUsers(message, user); break;
             case '/blockuser': await this.handleBlockUser(message, user, args[0]); break;
             case '/unblockuser': await this.handleUnblockUser(message, user, args[0]); break;
@@ -193,14 +151,12 @@ class AltoBot {
             case '/listtugas': this.handleListAllTasks(message, user); break;
             case '/hapustugas': await this.handleDeleteTask(message, user, args[0]); break;
             case '/setbonus': await this.handleSetBonus(message, user, args[0], args[1]); break;
-
             default:
                 commandHandled = false;
                 break;
         }
 
         if (!commandHandled) {
-             // [PERBAIKAN 4]: Cara generate content untuk perintah tidak valid
             const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             const prompt = `Pengguna mencoba perintah yang tidak ada: "${message.body}". Beri tahu mereka dengan ramah dalam Bahasa Indonesia bahwa perintah itu tidak ada dan sarankan untuk menggunakan /menu untuk melihat daftar perintah yang benar.`;
             const result = await model.generateContent(prompt);
@@ -239,7 +195,6 @@ class AltoBot {
         message.reply(menu);
     }
 
-    // --- Handler Game ---
     async startGame(message, user) {
         user.inGame = true;
         user.gameAnswer = Math.floor(Math.random() * 100) + 1;
@@ -272,20 +227,13 @@ class AltoBot {
         }
     }
     
-    // --- Handler Perintah Pengguna ---
-    
     async handleClaim(message, user) {
         if (user.claimedDailyBonus) {
             message.reply("Anda sudah mengklaim bonus harian hari ini. Coba lagi besok.");
             return;
         }
-
         const captchaText = this.generateCaptcha();
-        user.captchaState = {
-            isWaiting: true,
-            type: 'claim',
-            answer: captchaText
-        };
+        user.captchaState = { isWaiting: true, type: 'claim', answer: captchaText };
         await Storage.write(USERS_DB_PATH, this.users);
         message.reply(`🤖 Untuk verifikasi, silakan ketik teks berikut:\n\n*${captchaText}*`);
     }
@@ -309,35 +257,26 @@ class AltoBot {
             message.reply("ID tugas tidak valid. Gunakan */tugas* untuk melihat ID yang tersedia.");
             return;
         }
-
         const task = this.tasks.find(t => t.id === taskId);
         if (!task) {
             message.reply("Tugas dengan ID tersebut tidak ditemukan.");
             return;
         }
-
         if (user.completedTasksToday.includes(taskId)) {
             message.reply("Anda sudah menyelesaikan tugas ini hari ini.");
             return;
         }
-
         const captchaText = this.generateCaptcha();
         const timer = setTimeout(() => {
             const currentUserState = this.users[message.from];
-            if (currentUserState && currentUserState.captchaState.isWaiting && currentUserState.captchaState.task?.id === taskId) {
+            if (currentUserState?.captchaState.isWaiting && currentUserState.captchaState.task?.id === taskId) {
                 currentUserState.captchaState = { isWaiting: false };
                 Storage.write(USERS_DB_PATH, this.users);
                 message.reply("❌ Waktu habis! Penyelesaian tugas dibatalkan.");
             }
         }, task.duration * 60 * 1000);
 
-        user.captchaState = {
-            isWaiting: true,
-            type: 'task',
-            task: task,
-            answer: captchaText,
-            timerId: timer
-        };
+        user.captchaState = { isWaiting: true, type: 'task', task, answer: captchaText, timerId: timer };
         await Storage.write(USERS_DB_PATH, this.users);
         message.reply(`🤖 Untuk verifikasi, silakan ketik teks berikut dalam *${task.duration} menit*:\n\n*${captchaText}*`);
     }
@@ -348,10 +287,8 @@ class AltoBot {
 
     async verifyCaptcha(message, user, userInput) {
         const { type, task, answer, timerId } = user.captchaState;
-
         if (timerId) clearTimeout(timerId);
-
-        user.captchaState = { isWaiting: false }; // Reset state
+        user.captchaState = { isWaiting: false };
 
         if (userInput.trim().toUpperCase() === answer) {
             message.reply("✅ Captcha benar!");
@@ -373,7 +310,6 @@ class AltoBot {
         this.showMenu(message, user);
     }
 
-    // --- Handler Perintah Admin ---
     checkAdmin(message, user) {
         if (!user.isAdmin) {
             message.reply("❌ Perintah ini hanya untuk admin.");
@@ -392,18 +328,108 @@ class AltoBot {
         }
     }
     
-    // (Fungsi admin lainnya tidak perlu diubah, jadi saya hapus dari sini agar lebih ringkas)
-    // ... PASTE SEMUA FUNGSI ADMIN ANDA (handleListUsers, dll.) DI SINI ...
-    // --- Handler Pembuatan Media ---
-    // ... FUNGSI GAMBAR & VIDEO SENGAJA DIHAPUS KARENA MEMERLUKAN LIBRARY BERBEDA ...
+    handleListUsers(message, user) {
+        if (!this.checkAdmin(message, user)) return;
+        let userList = "--- 👥 Daftar Pengguna ---\n";
+        for (const id in this.users) {
+            const u = this.users[id];
+            userList += `*ID:* ${id.split('@')[0]}\n*Saldo:* ${u.balance}\n*Diblokir:* ${u.isBlocked}\n\n`;
+        }
+        message.reply(userList);
+    }
+    
+    async handleBlockUser(message, user, userIdToBlock) {
+        if (!this.checkAdmin(message, user)) return;
+        const targetId = userIdToBlock.endsWith('@c.us') ? userIdToBlock : `${userIdToBlock}@c.us`;
+        if (this.users[targetId]) {
+            this.users[targetId].isBlocked = true;
+            await Storage.write(USERS_DB_PATH, this.users);
+            message.reply(`✅ Pengguna ${targetId.split('@')[0]} telah diblokir.`);
+        } else {
+            message.reply(`❌ Pengguna ${userIdToBlock} tidak ditemukan.`);
+        }
+    }
+    
+    async handleUnblockUser(message, user, userIdToUnblock) {
+        if (!this.checkAdmin(message, user)) return;
+        const targetId = userIdToUnblock.endsWith('@c.us') ? userIdToUnblock : `${userIdToUnblock}@c.us`;
+        if (this.users[targetId]) {
+            this.users[targetId].isBlocked = false;
+            await Storage.write(USERS_DB_PATH, this.users);
+            message.reply(`✅ Blokir untuk pengguna ${targetId.split('@')[0]} telah dibuka.`);
+        } else {
+            message.reply(`❌ Pengguna ${userIdToUnblock} tidak ditemukan.`);
+        }
+    }
 
-    /**
-     * Mengirim pesan ke Gemini API dan membalas di WhatsApp.
-     */
+    async handleDeleteUser(message, user, userIdToDelete) {
+        if (!this.checkAdmin(message, user)) return;
+        const targetId = userIdToDelete.endsWith('@c.us') ? userIdToDelete : `${userIdToDelete}@c.us`;
+        if (this.users[targetId]) {
+            delete this.users[targetId];
+            await Storage.write(USERS_DB_PATH, this.users);
+            message.reply(`✅ Pengguna ${targetId.split('@')[0]} telah dihapus.`);
+        } else {
+            message.reply(`❌ Pengguna ${userIdToDelete} tidak ditemukan.`);
+        }
+    }
+
+    async handleAddTugas(message, user, bonusStr, durationStr, description) {
+        if (!this.checkAdmin(message, user)) return;
+        const bonus = parseInt(bonusStr);
+        const duration = parseInt(durationStr);
+        if (isNaN(bonus) || isNaN(duration) || !description || duration <= 0) {
+            message.reply("Penggunaan salah. Contoh: /addtugas 150 5 Jawab pertanyaan AI");
+            return;
+        }
+        const newId = this.tasks.length > 0 ? Math.max(...this.tasks.map(t => t.id)) + 1 : 1;
+        this.tasks.push({ id: newId, bonus, duration, description });
+        await Storage.write(TASKS_DB_PATH, this.tasks);
+        message.reply(`✅ Tugas baru ditambahkan dengan ID: ${newId}.`);
+    }
+
+    handleListAllTasks(message, user) {
+        if (!this.checkAdmin(message, user)) return;
+        if (this.tasks.length === 0) {
+            message.reply("Belum ada tugas yang dibuat.");
+            return;
+        }
+        let taskList = "--- 📝 Semua Tugas ---\n";
+        this.tasks.forEach(task => {
+            taskList += `*ID:* ${task.id} | *Bonus:* ${task.bonus} | *Durasi:* ${task.duration} menit\n*Tugas:* ${task.description}\n\n`;
+        });
+        message.reply(taskList);
+    }
+    
+    async handleDeleteTask(message, user, taskIdStr) {
+        if (!this.checkAdmin(message, user)) return;
+        const taskId = parseInt(taskIdStr);
+        const taskIndex = this.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex > -1) {
+            this.tasks.splice(taskIndex, 1);
+            await Storage.write(TASKS_DB_PATH, this.tasks);
+            message.reply(`✅ Tugas dengan ID ${taskId} telah dihapus.`);
+        } else {
+            message.reply("❌ Tugas dengan ID tersebut tidak ditemukan.");
+        }
+    }
+    
+    async handleSetBonus(message, user, minStr, maxStr) {
+        if (!this.checkAdmin(message, user)) return;
+        const min = parseInt(minStr);
+        const max = parseInt(maxStr);
+        if (isNaN(min) || isNaN(max) || min > max) {
+            message.reply("Penggunaan salah. Contoh: /setbonus 100 500");
+            return;
+        }
+        this.config.dailyBonus = { min, max };
+        await Storage.write(CONFIG_PATH, this.config);
+        message.reply(`✅ Bonus klaim harian telah diatur ke rentang ${min} - ${max}.`);
+    }
+
     async getAiResponse(message) {
         try {
             const userId = message.from;
-            // [PERBAIKAN 5]: Cara memulai chat dan mengirim pesan
             if (!this.userChats.has(userId)) {
                  const model = this.genAI.getGenerativeModel({ 
                     model: "gemini-1.5-flash",
@@ -416,7 +442,6 @@ class AltoBot {
             const result = await chat.sendMessage(message.body);
             const response = await result.response;
             const botResponse = response.text();
-
             message.reply(botResponse.trim());
 
         } catch (error) {
@@ -425,108 +450,6 @@ class AltoBot {
         }
     }
 }
-
-
-// Tambahkan handler untuk semua fungsi admin di sini agar kode tetap lengkap
-AltoBot.prototype.handleListUsers = function(message, user) {
-    if (!this.checkAdmin(message, user)) return;
-    let userList = "--- 👥 Daftar Pengguna ---\n";
-    for (const id in this.users) {
-        const u = this.users[id];
-        userList += `*ID:* ${id.split('@')[0]}\n*Saldo:* ${u.balance}\n*Diblokir:* ${u.isBlocked}\n\n`;
-    }
-    message.reply(userList);
-};
-
-AltoBot.prototype.handleBlockUser = async function(message, user, userIdToBlock) {
-    if (!this.checkAdmin(message, user)) return;
-    const targetId = userIdToBlock.endsWith('@c.us') ? userIdToBlock : `${userIdToBlock}@c.us`;
-    if (this.users[targetId]) {
-        this.users[targetId].isBlocked = true;
-        await Storage.write(USERS_DB_PATH, this.users);
-        message.reply(`✅ Pengguna ${targetId.split('@')[0]} telah diblokir.`);
-    } else {
-        message.reply(`❌ Pengguna ${userIdToBlock} tidak ditemukan.`);
-    }
-};
-
-AltoBot.prototype.handleUnblockUser = async function(message, user, userIdToUnblock) {
-    if (!this.checkAdmin(message, user)) return;
-    const targetId = userIdToUnblock.endsWith('@c.us') ? userIdToUnblock : `${userIdToUnblock}@c.us`;
-    if (this.users[targetId]) {
-        this.users[targetId].isBlocked = false;
-        await Storage.write(USERS_DB_PATH, this.users);
-        message.reply(`✅ Blokir untuk pengguna ${targetId.split('@')[0]} telah dibuka.`);
-    } else {
-        message.reply(`❌ Pengguna ${userIdToUnblock} tidak ditemukan.`);
-    }
-};
-
-AltoBot.prototype.handleDeleteUser = async function(message, user, userIdToDelete) {
-    if (!this.checkAdmin(message, user)) return;
-    const targetId = userIdToDelete.endsWith('@c.us') ? userIdToDelete : `${userIdToDelete}@c.us`;
-    if (this.users[targetId]) {
-        delete this.users[targetId];
-        await Storage.write(USERS_DB_PATH, this.users);
-        message.reply(`✅ Pengguna ${targetId.split('@')[0]} telah dihapus.`);
-    } else {
-        message.reply(`❌ Pengguna ${userIdToDelete} tidak ditemukan.`);
-    }
-};
-
-AltoBot.prototype.handleAddTugas = async function(message, user, bonusStr, durationStr, description) {
-    if (!this.checkAdmin(message, user)) return;
-    const bonus = parseInt(bonusStr);
-    const duration = parseInt(durationStr);
-    if (isNaN(bonus) || isNaN(duration) || !description || duration <= 0) {
-        message.reply("Penggunaan salah. Contoh: /addtugas 150 5 Jawab pertanyaan AI");
-        return;
-    }
-    const newId = this.tasks.length > 0 ? Math.max(...this.tasks.map(t => t.id)) + 1 : 1;
-    this.tasks.push({ id: newId, bonus, duration, description });
-    await Storage.write(TASKS_DB_PATH, this.tasks);
-    message.reply(`✅ Tugas baru ditambahkan dengan ID: ${newId}.`);
-};
-
-AltoBot.prototype.handleListAllTasks = function(message, user) {
-    if (!this.checkAdmin(message, user)) return;
-    if (this.tasks.length === 0) {
-        message.reply("Belum ada tugas yang dibuat.");
-        return;
-    }
-    let taskList = "--- 📝 Semua Tugas ---\n";
-    this.tasks.forEach(task => {
-        taskList += `*ID:* ${task.id} | *Bonus:* ${task.bonus} | *Durasi:* ${task.duration} menit\n*Tugas:* ${task.description}\n\n`;
-    });
-    message.reply(taskList);
-};
-
-AltoBot.prototype.handleDeleteTask = async function(message, user, taskIdStr) {
-    if (!this.checkAdmin(message, user)) return;
-    const taskId = parseInt(taskIdStr);
-    const taskIndex = this.tasks.findIndex(t => t.id === taskId);
-    if (taskIndex > -1) {
-        this.tasks.splice(taskIndex, 1);
-        await Storage.write(TASKS_DB_PATH, this.tasks);
-        message.reply(`✅ Tugas dengan ID ${taskId} telah dihapus.`);
-    } else {
-        message.reply("❌ Tugas dengan ID tersebut tidak ditemukan.");
-    }
-};
-
-AltoBot.prototype.handleSetBonus = async function(message, user, minStr, maxStr) {
-    if (!this.checkAdmin(message, user)) return;
-    const min = parseInt(minStr);
-    const max = parseInt(maxStr);
-    if (isNaN(min) || isNaN(max) || min > max) {
-        message.reply("Penggunaan salah. Contoh: /setbonus 100 500");
-        return;
-    }
-    this.config.dailyBonus = { min, max };
-    await Storage.write(CONFIG_PATH, this.config);
-    message.reply(`✅ Bonus klaim harian telah diatur ke rentang ${min} - ${max}.`);
-};
-
 
 const bot = new AltoBot();
 bot.initialize();
