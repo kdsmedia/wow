@@ -166,7 +166,7 @@ class AltoBot {
     }
 
     showMenu(message, user) {
-        let menu = `*MENU ALTO*
+        let menu = `*===== MENU ALTO =====*
 ==============================
 */menu* - Menampilkan menu ini
 */saldo* - Cek saldo Anda
