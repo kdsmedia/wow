@@ -447,7 +447,7 @@ class AltoBot {
 
         } catch (error) {
             console.error("\n❌ Gemini API error:", error);
-            message.reply("🤖 Maaf, terjadi kesalahan saat menghubungi AI. Coba lagi nanti.");
+            message.reply("🤖 Maaf, ALTO sedang tidur. Coba lagi nanti.");
         }
     }
 }
